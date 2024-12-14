@@ -23,7 +23,7 @@ def parse_args():
     parser.add_argument("--vis_flag", action='store_true', help="if vis mid-results")
     # params for TAG
     parser.add_argument("--filter_thresold", type=float, default=0.5)
-    parser.add_argument("--topk_layer_head", type=int, default=5, help="select topk image-attn-weight from all layer heads")
+    parser.add_argument("--topk_layer_head", type=int, default=10, help="select topk image-attn-weight from all layer heads")
     args = parser.parse_args()
     return args
 

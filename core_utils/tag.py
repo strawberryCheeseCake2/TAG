@@ -209,15 +209,10 @@ class AttentionDrivenGrounding:
     def concat_2d_arrays(input_list, shape):
         w, h = shape
         if len(input_list) != w * h:
-            raise ValueError("输入列表的长度必须等于 w * h")
+            raise ValueError("The length of the input list must be equal to w * h.")
         
-        # 获取每个子数组的形状
         sub_shape = input_list[0].shape
-        
-        # 创建一个大的空数组
         result = np.zeros((w * sub_shape[0], h * sub_shape[1]))
-        
-        # 填充大数组
         for i in range(h):
             for j in range(w):
                 index = i * w + j
