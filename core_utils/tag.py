@@ -186,6 +186,14 @@ class AttentionDrivenGrounding:
         high_res_attn_map_lb = attn_map_high_final * (attn_map_high_final >= self.filter_thresold)
         _, high_res_pred_bboxes = self.find_connected_regions_with_confidence(high_res_attn_map_lb)
         filtered_bbox_high_res = self.filter_bbox(high_res_pred_bboxes, threshold=self.filter_thresold)
+        return_dict = {
+            "low_res_image": slice_images[0],
+            "high_res_image": high_res_image,
+            "final_bbox": self.transform_bbox_with_confidence(target_image=original_image, source_image=high_res_image, pred_bboxes=copy.deepcopy(filtered_bbox_high_res)),
+            "low_res_attn_map": attn_map_low_final,
+            "high_res_attn_map": attn_map_high_final,
+        }
+
         if self.vis_flag:
             interested_query_text = self.tokenizer.decode(input_ids[0][interested_query_idx[0]:interested_query_idx[-1]+1])
             vis_query_text = '_'.join(interested_query_text.replace('/', ' ').replace('"', ' ').replace(',', ' ').split(' '))
@@ -193,17 +201,20 @@ class AttentionDrivenGrounding:
 
             gt_bboxes_in_high_res = self.transform_bbox(high_res_image, original_image, copy.deepcopy(gt_bboxes))
             gt_bboxes_in_low_res = self.transform_bbox(slice_images[0], original_image, copy.deepcopy(gt_bboxes))
-            self.plot_merged_bbox_attn_map([slice_images[0], high_res_image], [[attn_map_low_final], [attn_map_high_final]], [None, filtered_bbox_high_res], f"query_{vis_query_text[:100]}_lb{self.filter_thresold}-attnmap.jpg", [gt_bboxes_in_low_res, gt_bboxes_in_high_res])
-        
-        final_bbox = self.transform_bbox_with_confidence(target_image=original_image, source_image=high_res_image, pred_bboxes=copy.deepcopy(filtered_bbox_high_res))
+            self.plot_merged_bbox_attn_map(
+                [slice_images[0], high_res_image],
+                [[attn_map_low_final], [attn_map_high_final]],
+                [None, filtered_bbox_high_res],
+                f"query_{vis_query_text[:100]}_lb{self.filter_thresold}-attnmap.jpg",
+                [gt_bboxes_in_low_res, gt_bboxes_in_high_res],
+            )
 
-        return {
-            "low_res_image": slice_images[0],
-            "high_res_image": high_res_image,
-            "final_bbox": final_bbox,
-            "low_res_attn_map": attn_map_low_final,
-            "high_res_attn_map": attn_map_high_final,
-            }
+            tokens = [self.tokenizer.decode([tid]) for tid in input_ids[0][interested_query_idx[0]:interested_query_idx[-1]+1]]
+            return_dict["tokens"] = tokens
+            return_dict["attn_map_list_low"] = attn_map_list_low
+            return_dict["attn_map_list_high"] = attn_map_list_high
+
+        return return_dict
     
     @staticmethod
     def concat_2d_arrays(input_list, shape):
@@ -307,6 +318,35 @@ class AttentionDrivenGrounding:
         image_np = np.array(image)
         superimposed_img = cv2.addWeighted(image_np, 0.5, heatmap, 0.3, 0)
         return Image.fromarray(superimposed_img)
+
+    def plot_tokenwise_attn_maps(self, attn_maps_low, attn_maps_high, tokens, image_list, save_dir):
+        """Plot attention heatmaps for every token."""
+        if not os.path.exists(save_dir):
+            os.makedirs(save_dir)
+
+        for idx, token in enumerate(tokens):
+            low_map = np.kron(attn_maps_low[idx], np.ones((14, 14)))
+            high_map = np.kron(attn_maps_high[idx], np.ones((14, 14)))
+
+            low_img = self.apply_mask_to_image(image_list[0], low_map)
+            high_img = self.apply_mask_to_image(image_list[1], high_map)
+
+            fig = plt.figure(figsize=(8, 4))
+            try:
+                axes = fig.subplots(1, 2)
+                axes[0].imshow(low_img)
+                axes[0].axis('off')
+                axes[0].set_title('low-res')
+                axes[1].imshow(high_img)
+                axes[1].axis('off')
+                axes[1].set_title('high-res')
+
+                token_str = str(token).replace('/', '_').replace(' ', '_').replace('"', '')
+                save_path = os.path.join(save_dir, f"token_{idx}_{token_str}.jpg")
+                plt.tight_layout()
+                plt.savefig(save_path)
+            finally:
+                plt.close(fig)
     
     def plot_merged_bbox_attn_map(self, image_list, bbox_attn_map_list, bbox_list, save_name, gt_bbox_list=[None, None]):
         """plot images and masks"""

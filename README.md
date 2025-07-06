@@ -134,7 +134,19 @@ do
 done
 ```
 
-> Note: some evaluation [log](https://drive.google.com/drive/folders/1cIwpxUH6NlZ2JX1AKxLa44ule9cS6jOA?usp=sharing) files are provided for reference. 
+### Single Inference
+Run a single image/query pair with optional tokenwise visualization:
+
+```shell
+python single_inference.py \
+    --mllm_path ${MLLM_PATH} \
+    --image path/to/image.jpg \
+    --query "target text" \
+    --save-dir output/demo \
+    --vis-flag --tokenwise-vis
+```
+
+> Note: some evaluation [log](https://drive.google.com/drive/folders/1cIwpxUH6NlZ2JX1AKxLa44ule9cS6jOA?usp=sharing) files are provided for reference.
 
 ## Acknowledgement
 
